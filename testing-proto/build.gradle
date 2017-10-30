@@ -13,6 +13,7 @@ buildscript {
 dependencies {
     compile project(':grpc-protobuf'),
             project(':grpc-stub')
+    compileOnly libraries.javax_annotation
     testCompile libraries.truth
 }
 
