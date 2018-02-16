@@ -214,7 +214,7 @@ subprojects {
                 netty_proxy_handler: "io.netty:netty-handler-proxy:${nettyVersion}",
                 netty_tcnative: 'io.netty:netty-tcnative-boringssl-static:2.0.7.Final',
 
-                conscrypt: 'org.conscrypt:conscrypt-openjdk-uber:1.0.0.RC14',
+                conscrypt: 'org.conscrypt:conscrypt-openjdk-uber:1.0.0',
 
                 // Test dependencies.
                 junit: 'junit:junit:4.12',
