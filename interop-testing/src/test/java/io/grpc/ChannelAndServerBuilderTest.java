@@ -25,6 +25,7 @@ import com.google.common.truth.Truth;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import org.junit.Assume;
@@ -48,19 +49,39 @@ public class ChannelAndServerBuilderTest {
    */
   @Parameters(name = "class={0}")
   public static Collection<Object[]> params() throws Exception {
+    @SuppressWarnings("unchecked")
+    Collection<Class<?>> classesToCheck = Arrays.asList(
+        Class.forName("io.grpc.netty.NettyServerBuilder"),
+        Class.forName("io.grpc.netty.NettyChannelBuilder"),
+        Class.forName("io.grpc.okhttp.OkHttpChannelBuilder"),
+        Class.forName("io.grpc.internal.AbstractServerImplBuilder"),
+        Class.forName("io.grpc.internal.AbstractManagedChannelImplBuilder"),
+        Class.forName("io.grpc.inprocess.InProcessChannelBuilder"),
+        Class.forName("io.grpc.inprocess.InProcessServerBuilder"),
+        Class.forName("io.grpc.ForwardingChannelBuilder"));
+
     ClassLoader loader = ChannelAndServerBuilderTest.class.getClassLoader();
-    List<Object[]> classes = new ArrayList<Object[]>();
-    for (ClassInfo classInfo : ClassPath.from(loader).getTopLevelClassesRecursive("io.grpc")) {
-      Class<?> clazz = Class.forName(classInfo.getName(), false /*initialize*/, loader);
-      if (ServerBuilder.class.isAssignableFrom(clazz) && clazz != ServerBuilder.class) {
-        classes.add(new Object[]{clazz});
-      } else if (ManagedChannelBuilder.class.isAssignableFrom(clazz)
-          && clazz != ManagedChannelBuilder.class ) {
-        classes.add(new Object[]{clazz});
+    Collection<ClassInfo> infos = ClassPath.from(loader).getTopLevelClassesRecursive("io.grpc");
+    // If infos is empty, then we can't verify our hard-coded list. Assume that's due to Java 9.
+    if (!infos.isEmpty()) {
+      List<Class<?>> classes = new ArrayList<Class<?>>();
+      for (ClassInfo classInfo : infos) {
+        Class<?> clazz = Class.forName(classInfo.getName(), false /*initialize*/, loader);
+        if (ServerBuilder.class.isAssignableFrom(clazz) && clazz != ServerBuilder.class) {
+          classes.add(clazz);
+        } else if (ManagedChannelBuilder.class.isAssignableFrom(clazz)
+            && clazz != ManagedChannelBuilder.class ) {
+          classes.add(clazz);
+        }
       }
+      Truth.assertWithMessage("Unable to find any builder classes").that(classes).isNotEmpty();
+      Truth.assertThat(classes).containsExactlyElementsIn(classesToCheck);
     }
-    Truth.assertWithMessage("Unable to find any builder classes").that(classes).isNotEmpty();
-    return classes;
+    List<Object[]> params = new ArrayList<Object[]>();
+    for (Class<?> clazz : classesToCheck) {
+      params.add(new Object[]{clazz});
+    }
+    return params;
   }
 
   @Test
