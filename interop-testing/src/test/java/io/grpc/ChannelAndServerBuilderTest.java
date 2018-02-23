@@ -25,7 +25,6 @@ import com.google.common.truth.Truth;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import org.junit.Assume;
@@ -37,6 +36,8 @@ import org.junit.runners.Parameterized.Parameters;
 
 /**
  * Tests that Channel and Server builders properly hide the static constructors.
+ *
+ * <p>This test does nothing on Java 9.
  */
 @RunWith(Parameterized.class)
 public class ChannelAndServerBuilderTest {
@@ -49,39 +50,25 @@ public class ChannelAndServerBuilderTest {
    */
   @Parameters(name = "class={0}")
   public static Collection<Object[]> params() throws Exception {
-    @SuppressWarnings("unchecked")
-    Collection<Class<?>> classesToCheck = Arrays.asList(
-        Class.forName("io.grpc.netty.NettyServerBuilder"),
-        Class.forName("io.grpc.netty.NettyChannelBuilder"),
-        Class.forName("io.grpc.okhttp.OkHttpChannelBuilder"),
-        Class.forName("io.grpc.internal.AbstractServerImplBuilder"),
-        Class.forName("io.grpc.internal.AbstractManagedChannelImplBuilder"),
-        Class.forName("io.grpc.inprocess.InProcessChannelBuilder"),
-        Class.forName("io.grpc.inprocess.InProcessServerBuilder"),
-        Class.forName("io.grpc.ForwardingChannelBuilder"));
-
     ClassLoader loader = ChannelAndServerBuilderTest.class.getClassLoader();
-    Collection<ClassInfo> infos = ClassPath.from(loader).getTopLevelClassesRecursive("io.grpc");
-    // If infos is empty, then we can't verify our hard-coded list. Assume that's due to Java 9.
-    if (!infos.isEmpty()) {
-      List<Class<?>> classes = new ArrayList<Class<?>>();
-      for (ClassInfo classInfo : infos) {
-        Class<?> clazz = Class.forName(classInfo.getName(), false /*initialize*/, loader);
-        if (ServerBuilder.class.isAssignableFrom(clazz) && clazz != ServerBuilder.class) {
-          classes.add(clazz);
-        } else if (ManagedChannelBuilder.class.isAssignableFrom(clazz)
-            && clazz != ManagedChannelBuilder.class) {
-          classes.add(clazz);
-        }
+    Collection<ClassInfo> classInfos =
+        ClassPath.from(loader).getTopLevelClassesRecursive("io.grpc");
+    // Java 9 doesn't expose the URLClassLoader, which breaks searching through the classpath
+    if (classInfos.isEmpty()) {
+      return new ArrayList<Object[]>();
+    }
+    List<Object[]> classes = new ArrayList<Object[]>();
+    for (ClassInfo classInfo : classInfos) {
+      Class<?> clazz = Class.forName(classInfo.getName(), false /*initialize*/, loader);
+      if (ServerBuilder.class.isAssignableFrom(clazz) && clazz != ServerBuilder.class) {
+        classes.add(new Object[]{clazz});
+      } else if (ManagedChannelBuilder.class.isAssignableFrom(clazz)
+          && clazz != ManagedChannelBuilder.class) {
+        classes.add(new Object[]{clazz});
       }
-      Truth.assertWithMessage("Unable to find any builder classes").that(classes).isNotEmpty();
-      Truth.assertThat(classes).containsExactlyElementsIn(classesToCheck);
     }
-    List<Object[]> params = new ArrayList<Object[]>();
-    for (Class<?> clazz : classesToCheck) {
-      params.add(new Object[]{clazz});
-    }
-    return params;
+    Truth.assertWithMessage("Unable to find any builder classes").that(classes).isNotEmpty();
+    return classes;
   }
 
   @Test
